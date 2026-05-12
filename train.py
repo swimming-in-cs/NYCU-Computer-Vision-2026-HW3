@@ -1,5 +1,5 @@
 """
-train.py — Detectron2 Mask R-CNN R-50 training for HW3 Cell Instance Segmentation.
+train.py - Detectron2 Mask R-CNN R-50 training for HW3 Cell Segmentation.
 
 Usage
 -----
@@ -34,43 +34,43 @@ from detectron2.structures import BoxMode
 
 
 # ============================================================================
-# Config — all tunable hyper-parameters in one place
+# Config - all tunable hyper-parameters in one place
 # ============================================================================
 
 class Config:
     # Paths
-    data_root  = "hw3_data"
+    data_root = "hw3_data"
     output_dir = "output_r50_v2"
 
     # Training
-    max_iter   = 10000
+    max_iter = 10000
     batch_size = 2
-    base_lr    = 5e-5        # lower LR to avoid early overfitting
-    val_ratio  = 0.1
-    seed       = 42
+    base_lr = 5e-5  # lower LR to avoid early overfitting
+    val_ratio = 0.1
+    seed = 42
 
     # LR schedule
-    warmup_iters     = 200
-    lr_decay_steps   = (8000, 9000)
-    lr_decay_gamma   = 0.1
+    warmup_iters = 200
+    lr_decay_steps = (8000, 9000)
+    lr_decay_gamma = 0.1
 
     # Evaluation & checkpoint
-    eval_period      = 500   # evaluate every N iterations
+    eval_period = 500  # evaluate every N iterations
     checkpoint_period = 500
 
     # Model
-    num_classes  = 4
+    num_classes = 4
     score_thresh = 0.05
-    nms_thresh   = 0.5
+    nms_thresh = 0.5
 
     # Anchors
-    anchor_sizes   = [[32], [64], [128], [256], [512]]
-    anchor_ratios  = [[0.5, 1.0, 2.0]] * 5
+    anchor_sizes = [[32], [64], [128], [256], [512]]
+    anchor_ratios = [[0.5, 1.0, 2.0]] * 5
 
     # Input
     min_size_train = (640, 672, 704, 736, 768, 800)
     max_size_train = 1333
-    min_size_test  = 800
+    min_size_test = 800
 
     num_workers = 2
 
@@ -122,11 +122,11 @@ def mask_to_annotations(mask: np.ndarray, category_id: int) -> list:
         if poly is None:
             continue
         annotations.append({
-            'bbox':         [int(x_min), int(y_min), int(x_max), int(y_max)],
-            'bbox_mode':    BoxMode.XYXY_ABS,
+            'bbox': [int(x_min), int(y_min), int(x_max), int(y_max)],
+            'bbox_mode': BoxMode.XYXY_ABS,
             'segmentation': [poly],
-            'category_id':  category_id,
-            'iscrowd':      0,
+            'category_id': category_id,
+            'iscrowd': 0,
         })
     return annotations
 
@@ -157,10 +157,10 @@ def build_dataset_dicts(data_root: str) -> list:
             continue
 
         dicts.append({
-            'file_name':   str(img_path),
-            'image_id':    image_id,
-            'height':      H,
-            'width':       W,
+            'file_name': str(img_path),
+            'image_id': image_id,
+            'height': H,
+            'width': W,
             'annotations': annos,
         })
         image_id += 1
@@ -168,7 +168,9 @@ def build_dataset_dicts(data_root: str) -> list:
     return dicts
 
 
-def register_datasets(data_root: str, val_ratio: float = 0.1, seed: int = 42):
+def register_datasets(
+    data_root: str, val_ratio: float = 0.1, seed: int = 42
+):
     """Register train/val splits to Detectron2 DatasetCatalog."""
     random.seed(seed)
     all_dicts = build_dataset_dicts(data_root)
@@ -177,7 +179,7 @@ def register_datasets(data_root: str, val_ratio: float = 0.1, seed: int = 42):
 
     splits = {
         'cell_train': all_dicts[n_val:],
-        'cell_val':   all_dicts[:n_val],
+        'cell_val': all_dicts[:n_val],
     }
     for name, dicts in splits.items():
         if name in DatasetCatalog:
@@ -185,7 +187,9 @@ def register_datasets(data_root: str, val_ratio: float = 0.1, seed: int = 42):
         DatasetCatalog.register(name, lambda d=dicts: d)
         MetadataCatalog.get(name).set(thing_classes=CELL_CLASSES)
 
-    print(f"Train: {len(splits['cell_train'])}, Val: {len(splits['cell_val'])}")
+    n_train = len(splits['cell_train'])
+    n_val_size = len(splits['cell_val'])
+    print(f"Train: {n_train}, Val: {n_val_size}")
 
 
 # ============================================================================
@@ -193,13 +197,13 @@ def register_datasets(data_root: str, val_ratio: float = 0.1, seed: int = 42):
 # ============================================================================
 
 class CellAugMapper(DatasetMapper):
-    """Custom mapper with H/V flip, rotation, color jitter, multi-scale resize."""
+    """Custom mapper with H/V flip, rotation, color jitter, multi-scale."""
 
     def __init__(self, cfg, is_train: bool = True):
         super().__init__(cfg, is_train=is_train)
         if is_train:
             self.augmentations = T.AugmentationList([
-                T.RandomFlip(prob=0.5, horizontal=True,  vertical=False),
+                T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
                 T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
                 T.RandomRotation(angle=[-15, 15]),
                 T.RandomBrightness(0.8, 1.2),
@@ -228,7 +232,8 @@ class CellAugMapper(DatasetMapper):
             img.transpose(2, 0, 1).astype('float32'))
 
         annos = [
-            utils.transform_instance_annotations(a, [transforms], img.shape[:2])
+            utils.transform_instance_annotations(
+                a, [transforms], img.shape[:2])
             for a in dataset_dict.get('annotations', [])
             if a.get('iscrowd', 0) == 0
         ]
@@ -250,8 +255,9 @@ class CellTrainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         return DatasetEvaluators([
-            COCOEvaluator(dataset_name,
-                          output_dir=output_folder or cfg.OUTPUT_DIR)
+            COCOEvaluator(
+                dataset_name,
+                output_dir=output_folder or cfg.OUTPUT_DIR)
         ])
 
 
@@ -265,32 +271,32 @@ def build_cfg(args) -> object:
         'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))
 
     cfg.DATASETS.TRAIN = ('cell_train',)
-    cfg.DATASETS.TEST  = ('cell_val',)
-    cfg.MODEL.WEIGHTS  = model_zoo.get_checkpoint_url(
+    cfg.DATASETS.TEST = ('cell_val',)
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
         'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml')
 
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES          = Config.num_classes
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = Config.num_classes
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST    = Config.score_thresh
-    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST      = Config.nms_thresh
-    cfg.MODEL.ANCHOR_GENERATOR.SIZES         = Config.anchor_sizes
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = Config.score_thresh
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = Config.nms_thresh
+    cfg.MODEL.ANCHOR_GENERATOR.SIZES = Config.anchor_sizes
     cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS = Config.anchor_ratios
 
-    cfg.INPUT.MIN_SIZE_TRAIN          = Config.min_size_train
-    cfg.INPUT.MAX_SIZE_TRAIN          = Config.max_size_train
-    cfg.INPUT.MIN_SIZE_TEST           = Config.min_size_test
+    cfg.INPUT.MIN_SIZE_TRAIN = Config.min_size_train
+    cfg.INPUT.MAX_SIZE_TRAIN = Config.max_size_train
+    cfg.INPUT.MIN_SIZE_TEST = Config.min_size_test
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
 
-    cfg.SOLVER.IMS_PER_BATCH      = args.batch_size
-    cfg.SOLVER.BASE_LR            = args.lr
-    cfg.SOLVER.MAX_ITER           = args.max_iter
-    cfg.SOLVER.STEPS              = Config.lr_decay_steps
-    cfg.SOLVER.GAMMA              = Config.lr_decay_gamma
-    cfg.SOLVER.WARMUP_ITERS       = Config.warmup_iters
-    cfg.SOLVER.CHECKPOINT_PERIOD  = Config.checkpoint_period
+    cfg.SOLVER.IMS_PER_BATCH = args.batch_size
+    cfg.SOLVER.BASE_LR = args.lr
+    cfg.SOLVER.MAX_ITER = args.max_iter
+    cfg.SOLVER.STEPS = Config.lr_decay_steps
+    cfg.SOLVER.GAMMA = Config.lr_decay_gamma
+    cfg.SOLVER.WARMUP_ITERS = Config.warmup_iters
+    cfg.SOLVER.CHECKPOINT_PERIOD = Config.checkpoint_period
 
-    cfg.TEST.EVAL_PERIOD  = Config.eval_period
-    cfg.OUTPUT_DIR        = args.output_dir
+    cfg.TEST.EVAL_PERIOD = Config.eval_period
+    cfg.OUTPUT_DIR = args.output_dir
     cfg.DATALOADER.NUM_WORKERS = Config.num_workers
 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
@@ -303,14 +309,15 @@ def build_cfg(args) -> object:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='HW3 Cell Instance Segmentation — Train')
-    parser.add_argument('--data-root',  default=Config.data_root)
+        description='HW3 Cell Instance Segmentation - Train')
+    parser.add_argument('--data-root', default=Config.data_root)
     parser.add_argument('--output-dir', default=Config.output_dir)
-    parser.add_argument('--max-iter',   type=int,   default=Config.max_iter)
-    parser.add_argument('--batch-size', type=int,   default=Config.batch_size)
-    parser.add_argument('--lr',         type=float, default=Config.base_lr)
-    parser.add_argument('--resume',     action='store_true',
-                        help='Resume from last checkpoint if available')
+    parser.add_argument('--max-iter', type=int, default=Config.max_iter)
+    parser.add_argument('--batch-size', type=int, default=Config.batch_size)
+    parser.add_argument('--lr', type=float, default=Config.base_lr)
+    parser.add_argument(
+        '--resume', action='store_true',
+        help='Resume from last checkpoint if available')
     return parser.parse_args()
 
 
@@ -323,7 +330,11 @@ def main():
 
     print(f"Data root  : {args.data_root}")
     print(f"Output dir : {args.output_dir}")
-    print(f"Max iter   : {args.max_iter}  |  LR: {args.lr}  |  Batch: {args.batch_size}")
+    print(
+        f"Max iter: {args.max_iter}"
+        f" | LR: {args.lr}"
+        f" | Batch: {args.batch_size}"
+    )
 
     register_datasets(args.data_root, Config.val_ratio, Config.seed)
 
