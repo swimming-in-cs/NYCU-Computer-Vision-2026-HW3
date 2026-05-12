@@ -110,7 +110,7 @@ Key arguments:
 | Split | AP50 |
 |-------|------|
 | Validation (iter 3499) | 37.27 |
-| Public Test (CodaBench) | **35.84** |
+| Public Test (CodaBench) | **35.94** |
 
 ### Per-category AP50 (Validation)
 
