@@ -133,3 +133,10 @@ Key arguments:
 - **Checkpoint selection**: Best val AP50 at iter 3499 used for final inference
 
 ---
+### Training Curves
+
+![Training Curves](images/training_curves.png)
+
+### Leaderboard
+
+![Leaderboard](images/leaderboard.png)
