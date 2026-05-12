@@ -1,10 +1,10 @@
 """
-inference.py — Detectron2 Mask R-CNN R-50 inference for HW3 Cell Instance Segmentation.
+inference.py - Detectron2 Mask R-CNN R-50 inference for HW3 Cell Segmentation.
 
 Usage
 -----
-python inference.py --checkpoint output_r50_v2/model_0003499.pth \\
-                    --data-root hw3_data \\
+python inference.py --checkpoint output_r50_v2/model_0003499.pth \
+                    --data-root hw3_data \
                     --output submission.zip
 """
 
@@ -24,16 +24,16 @@ from detectron2.engine import DefaultPredictor
 
 
 # ============================================================================
-# Config — keep in sync with train.py
+# Config - keep in sync with train.py
 # ============================================================================
 
 class Config:
-    num_classes  = 4
+    num_classes = 4
     score_thresh = 0.05
-    nms_thresh   = 0.5
-    anchor_sizes   = [[32], [64], [128], [256], [512]]
-    anchor_ratios  = [[0.5, 1.0, 2.0]] * 5
-    min_size_test  = 800
+    nms_thresh = 0.5
+    anchor_sizes = [[32], [64], [128], [256], [512]]
+    anchor_ratios = [[0.5, 1.0, 2.0]] * 5
+    min_size_test = 800
 
 
 # ============================================================================
@@ -53,7 +53,8 @@ def normalise_img(img: np.ndarray) -> np.ndarray:
 
 def binary_mask_to_rle(binary_mask: np.ndarray) -> dict:
     """Encode binary mask to COCO RLE format (JSON-serialisable)."""
-    rle = mask_utils.encode(np.asfortranarray(binary_mask.astype(np.uint8)))
+    rle = mask_utils.encode(
+        np.asfortranarray(binary_mask.astype(np.uint8)))
     rle['counts'] = rle['counts'].decode('utf-8')
     return rle
 
@@ -64,13 +65,13 @@ def build_predictor(checkpoint: str) -> DefaultPredictor:
     cfg.merge_from_file(model_zoo.get_config_file(
         'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))
 
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES       = Config.num_classes
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = Config.num_classes
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = Config.score_thresh
-    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST   = Config.nms_thresh
-    cfg.MODEL.ANCHOR_GENERATOR.SIZES      = Config.anchor_sizes
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = Config.nms_thresh
+    cfg.MODEL.ANCHOR_GENERATOR.SIZES = Config.anchor_sizes
     cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS = Config.anchor_ratios
-    cfg.MODEL.WEIGHTS                     = checkpoint
-    cfg.INPUT.MIN_SIZE_TEST               = Config.min_size_test
+    cfg.MODEL.WEIGHTS = checkpoint
+    cfg.INPUT.MIN_SIZE_TEST = Config.min_size_test
 
     return DefaultPredictor(cfg)
 
@@ -85,16 +86,17 @@ def run_inference(predictor, test_dicts: list) -> list:
 
     for i, record in enumerate(test_dicts):
         img = normalise_img(tifffile.imread(record['file_name']))
-        outputs   = predictor(img)
+        outputs = predictor(img)
         instances = outputs['instances'].to('cpu')
 
         for j in range(len(instances)):
             results.append({
-                'image_id':     record['image_id'],
-                'category_id':  int(instances.pred_classes[j].item()) + 1,
+                'image_id': record['image_id'],
+                'category_id': int(
+                    instances.pred_classes[j].item()) + 1,
                 'segmentation': binary_mask_to_rle(
                     instances.pred_masks[j].numpy()),
-                'score':        float(instances.scores[j].item()),
+                'score': float(instances.scores[j].item()),
             })
 
         if (i + 1) % 20 == 0:
@@ -109,13 +111,13 @@ def run_inference(predictor, test_dicts: list) -> list:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='HW3 Cell Instance Segmentation — Inference')
+        description='HW3 Cell Instance Segmentation - Inference')
     parser.add_argument('--checkpoint', required=True,
                         help='Path to model checkpoint (.pth)')
-    parser.add_argument('--data-root',  default='hw3_data',
+    parser.add_argument('--data-root', default='hw3_data',
                         help='Path to hw3_data folder')
-    parser.add_argument('--output',     default='submission.zip',
-                        help='Output zip file path (default: submission.zip)')
+    parser.add_argument('--output', default='submission.zip',
+                        help='Output zip file path')
     return parser.parse_args()
 
 
@@ -126,7 +128,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # ── Load test metadata ────────────────────────────────────────────────────
+    # Load test metadata
     meta_path = Path(args.data_root) / 'test_image_name_to_ids.json'
     with open(meta_path) as f:
         meta_list = json.load(f)
@@ -138,21 +140,21 @@ def main():
         if tif.exists():
             test_dicts.append({
                 'file_name': str(tif),
-                'image_id':  item['id'],
+                'image_id': item['id'],
             })
 
     print(f"Checkpoint : {args.checkpoint}")
     print(f"Test images: {len(test_dicts)}")
 
-    # ── Build predictor ───────────────────────────────────────────────────────
+    # Build predictor
     predictor = build_predictor(args.checkpoint)
 
-    # ── Run inference ─────────────────────────────────────────────────────────
+    # Run inference
     print("\nRunning inference...")
     results = run_inference(predictor, test_dicts)
     print(f"\nTotal predictions: {len(results)}")
 
-    # ── Save results ──────────────────────────────────────────────────────────
+    # Save results
     result_json = args.output.replace('.zip', '.json')
     with open(result_json, 'w') as f:
         json.dump(results, f)
