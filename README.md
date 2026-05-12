@@ -7,7 +7,7 @@ Student: 111550005 林均豪
 
 This project implements instance segmentation on a medical H&E cell imaging dataset with four cell types (class1–class4). The solution is based on **Mask R-CNN** with a **ResNet-50 + FPN** backbone, implemented using the [Detectron2](https://github.com/facebookresearch/detectron2) framework.
 
-**Public leaderboard score: 0.3698 (AP50)**
+**Public leaderboard score: 0.3594 (AP50)**
 
 ---
 
